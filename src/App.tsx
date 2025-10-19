@@ -13,6 +13,10 @@ export default function App() {
   const user = useRef(`user-${Math.floor(Math.random() * 1000)}`);
   const wsRef = useRef<WebSocket | null>(null);
 
+  // IME用フラグ
+  const composingRaf = useRef(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     const url = `${location.origin.replace("http", "ws")}/ws`;
     const ws = new WebSocket(url);
@@ -33,10 +37,15 @@ export default function App() {
     return () => ws.close();
   }, []);
 
+  const canSend = () =>
+    !!wsRef.current &&
+    wsRef.current.readyState === WebSocket.OPEN &&
+    text.trim().length > 0;
+
   const send = () => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    // if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+    if (!canSend()) return;
     const trimmed = text.trim();
-    if (!trimmed) return;
 
     const msg: ChatMessage = {
       type: "chat",
@@ -44,8 +53,18 @@ export default function App() {
       text: trimmed,
       ts: Date.now(),
     };
-    wsRef.current.send(JSON.stringify(msg));
+    wsRef.current!.send(JSON.stringify(msg));
     setText("");
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
+  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    const isIME = composingRaf.current || e.nativeEvent.isComposing;
+
+    if (e.key === "Enter" && !e.shiftKey && !isIME) {
+      e.preventDefault();
+      send();
+    }
   };
 
   return (
@@ -56,9 +75,9 @@ export default function App() {
           return (
             <div
               key={i}
-              className={`${mine ? "justify-end" : "justify-start"}`}
+              className={`flex flex-col ${mine ? "items-end" : "items-start"}`}
             >
-              <p className="text-gray-600 mb-0.5">{m.user}</p>
+              {!mine && <p className="text-gray-600 mb-0.5">{m.user}</p>}
               <div
                 className={`px-2 py-2 rounded-lg max-w-[75%] w-fit ${
                   mine ? "bg-blue-500 text-white" : "bg-gray-200"
@@ -74,12 +93,16 @@ export default function App() {
         <input
           className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring"
           placeholder="メッセージを入力..."
+          ref={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
+          onKeyDown={onKeyDown}
+          onCompositionStart={() => (composingRaf.current = true)}
+          onCompositionEnd={() => (composingRaf.current = false)}
         />
         <button
           onClick={send}
+          disabled={!canSend()}
           className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
         >
           send
