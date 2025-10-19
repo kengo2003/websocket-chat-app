@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-type ChatMessage = {
-  type: "chat";
-  user: string;
-  text: string;
-  ts: number;
-};
+import { ChatSchema, type ChatMessage } from "./schemas";
 
 export default function App() {
   const [log, setLog] = useState<ChatMessage[]>([]);
@@ -47,13 +41,28 @@ export default function App() {
     if (!canSend()) return;
     const trimmed = text.trim();
 
-    const msg: ChatMessage = {
+    const draft: ChatMessage = {
       type: "chat",
       user: user.current,
       text: trimmed,
       ts: Date.now(),
     };
-    wsRef.current!.send(JSON.stringify(msg));
+
+    const v = ChatSchema.safeParse(draft);
+    if (!v.success) {
+      const issues = v.error.issues;
+
+      const fieldErrors = issues.reduce((acc, issue) => {
+        const key = issue.path.length ? issue.path.join(".") : "_form";
+        (acc[key] ??= []).push(issue.message);
+        return acc;
+      }, {} as Record<string, string[]>);
+
+      console.warn("invalid message", fieldErrors);
+      return;
+    }
+
+    wsRef.current!.send(JSON.stringify(v.data));
     setText("");
     requestAnimationFrame(() => inputRef.current?.focus());
   };

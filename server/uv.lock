@@ -254,7 +254,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.119.0" },
-    { name = "pydantic", extras = ["dotenv"], specifier = ">=2.12.0" },
+    { name = "pydantic", extras = ["dotenv"], specifier = ">=2.0,<3.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.37.0" },
     { name = "websockets", specifier = ">=15.0.1" },
 ]
