@@ -81,11 +81,11 @@ export default function Chat() {
 
   return (
     <>
-      <div className="w-full max-w-xl bg-white rounded-xl shadow border">
-        <header className="px-4 py-3 border-b">
-          <h1 className="text-lg font-semibold">WebSocket Chat</h1>
+      <div className="w-full h-full bg-white flex flex-col">
+        <header className="px-4 py-3 border-b shrink">
+          <h1 className="text-lg font-semibold">相手ユーザ名</h1>
         </header>
-        <section id="chat" className="h-80 overflow-auto p-4 space-y-2">
+        <section id="chat" className="flex-1 overflow-auto p-4 space-y-2">
           {log.map((m, i) => {
             const mine = m.user === user.current;
             return (
@@ -105,7 +105,7 @@ export default function Chat() {
             );
           })}
         </section>
-        <section className="p-3 border-t flex gap-2">
+        <section className="p-3 border-t flex gap-2 shrink">
           <input
             className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring"
             placeholder="メッセージを入力..."

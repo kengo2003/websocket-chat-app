@@ -1,11 +1,7 @@
 import { useState } from "react";
 import supabase from "./supabase";
 
-type AuthProps = {
-  setLoggedIn: (value: boolean) => void;
-};
-
-const Auth = ({ setLoggedIn }: AuthProps) => {
+const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -18,8 +14,6 @@ const Auth = ({ setLoggedIn }: AuthProps) => {
     });
     if (error) {
       setErrorMessage(error.message);
-    } else {
-      setLoggedIn(true);
     }
   };
 
@@ -31,8 +25,6 @@ const Auth = ({ setLoggedIn }: AuthProps) => {
     });
     if (error) {
       setErrorMessage("ログイン失敗" + error.message);
-    } else {
-      setLoggedIn(true);
     }
   };
 
