@@ -10,4 +10,5 @@ class ChatMessage(BaseModel):
     type: Literal["chat"]
     user: USERNAME
     text: TEXT
+    target_user: str
     ts: int = Field(default_factory=lambda: int(time.time() * 1000))

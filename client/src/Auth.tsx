@@ -1,5 +1,11 @@
 import { useState } from "react";
 import supabase from "./supabase";
+// import type { Session, User } from "@supabase/supabase-js";
+
+// type authData = {
+//   user: User;
+//   session: Session;
+// };
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -7,13 +13,27 @@ const Auth = () => {
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSignUp = async () => {
-    setErrorMessage("");
-    const { error } = await supabase.auth.signUp({
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
-    if (error) {
-      setErrorMessage(error.message);
+
+    if (authError) {
+      setErrorMessage(authError.message);
+      return;
+    }
+
+    if (authData.user) {
+      const { error: dbError } = await supabase.from("profiles").insert([
+        {
+          id: authData.user.id,
+          email: email,
+        },
+      ]);
+      if (dbError) {
+        setErrorMessage("名簿への登録失敗しました" + dbError.message);
+        return;
+      }
     }
   };
 

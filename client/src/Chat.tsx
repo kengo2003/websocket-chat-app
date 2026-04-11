@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatSchema, type ChatMessage } from "./schemas";
 
-export default function Chat() {
+type Profile = {
+  id: string;
+  email: string;
+};
+
+type ChatProps = {
+  selectedUser: Profile;
+  currentUserEmail: string;
+};
+
+export default function Chat({ selectedUser, currentUserEmail }: ChatProps) {
   const [log, setLog] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
-  const user = useRef(`user-${Math.floor(Math.random() * 1000)}`);
+  const user = useRef(currentUserEmail);
   const wsRef = useRef<WebSocket | null>(null);
 
   // IME用フラグ
@@ -12,7 +22,15 @@ export default function Chat() {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const url = `${location.origin.replace("http", "ws")}/ws`;
+    user.current = currentUserEmail;
+  }, [currentUserEmail]);
+
+  useEffect(() => {
+    setLog([]);
+  }, [selectedUser.email]);
+
+  useEffect(() => {
+    const url = `${location.origin.replace("http", "ws")}/ws?user=${currentUserEmail}`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
@@ -20,7 +38,17 @@ export default function Chat() {
     ws.onmessage = (e) => {
       try {
         const msg: ChatMessage = JSON.parse(e.data);
-        if (msg?.type === "chat") setLog((old) => [...old, msg]);
+        if (msg?.type === "chat") {
+          const isMyMessageToTarget =
+            msg.user === currentUserEmail &&
+            msg.target_user === selectedUser.email;
+          const isTargetMessageToMe =
+            msg.user === selectedUser.email &&
+            msg.target_user === currentUserEmail;
+          if (isMyMessageToTarget || isTargetMessageToMe) {
+            setLog((old) => [...old, msg]);
+          }
+        }
       } catch {
         // 非JSONは無視（MVP）
       }
@@ -37,13 +65,13 @@ export default function Chat() {
     text.trim().length > 0;
 
   const send = () => {
-    // if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     if (!canSend()) return;
     const trimmed = text.trim();
 
     const draft: ChatMessage = {
       type: "chat",
       user: user.current,
+      target_user: selectedUser.email,
       text: trimmed,
       ts: Date.now(),
     };
@@ -83,7 +111,7 @@ export default function Chat() {
     <>
       <div className="w-full h-full bg-white flex flex-col">
         <header className="px-4 py-3 border-b shrink">
-          <h1 className="text-lg font-semibold">相手ユーザ名</h1>
+          <h1 className="text-lg font-semibold">{selectedUser.email}</h1>
         </header>
         <section id="chat" className="flex-1 overflow-auto p-4 space-y-2">
           {log.map((m, i) => {

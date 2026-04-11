@@ -3,6 +3,7 @@ import { z } from "zod";
 export const ChatSchema = z.object({
   type: z.literal("chat"),
   user: z.string().trim().min(1).max(32),
+  target_user: z.string(),
   text: z.string().trim().min(1).max(200),
   ts: z.number().int(),
 });
