@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatSchema, type ChatMessage } from "./schemas";
+import supabase from "./supabase";
 
 type Profile = {
   id: string;
@@ -59,12 +60,40 @@ export default function Chat({ selectedUser, currentUserEmail }: ChatProps) {
     return () => ws.close();
   }, []);
 
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .in("sender_email", [currentUserEmail, selectedUser.email])
+        .in("target_email", [currentUserEmail, selectedUser.email])
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("履歴取得のエラー", error);
+        return;
+      }
+
+      if (data) {
+        const historyLogs: ChatMessage[] = data.map((d) => ({
+          type: "chat",
+          user: d.sender_email,
+          target_user: d.target_email,
+          text: d.text,
+          ts: new Date(d.created_at).getTime(),
+        }));
+        setLog(historyLogs);
+      }
+    };
+    fetchHistory();
+  }, [selectedUser.email, currentUserEmail]);
+
   const canSend = () =>
     !!wsRef.current &&
     wsRef.current.readyState === WebSocket.OPEN &&
     text.trim().length > 0;
 
-  const send = () => {
+  const send = async () => {
     if (!canSend()) return;
     const trimmed = text.trim();
 
@@ -96,6 +125,17 @@ export default function Chat({ selectedUser, currentUserEmail }: ChatProps) {
     wsRef.current!.send(JSON.stringify(v.data));
     setText("");
     requestAnimationFrame(() => inputRef.current?.focus());
+
+    const { error } = await supabase.from("messages").insert([
+      {
+        sender_email: user.current,
+        target_email: selectedUser.email,
+        text: trimmed,
+      },
+    ]);
+    if (error) {
+      console.error("メッセージの保存に失敗", error);
+    }
   };
 
   const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
