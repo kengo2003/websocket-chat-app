@@ -21,6 +21,10 @@ export default function Chat({ selectedUser, currentUserEmail }: ChatProps) {
   // IME用フラグ
   const composingRaf = useRef(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const targetRef = useRef(selectedUser);
+  useEffect(() => {
+    targetRef.current = selectedUser;
+  }, [selectedUser]);
 
   useEffect(() => {
     user.current = currentUserEmail;
@@ -36,18 +40,30 @@ export default function Chat({ selectedUser, currentUserEmail }: ChatProps) {
     wsRef.current = ws;
 
     ws.onopen = () => console.log("WS connected");
-    ws.onmessage = (e) => {
+    ws.onmessage = async (e) => {
       try {
         const msg: ChatMessage = JSON.parse(e.data);
         if (msg?.type === "chat") {
           const isMyMessageToTarget =
             msg.user === currentUserEmail &&
-            msg.target_user === selectedUser.email;
+            msg.target_user === targetRef.current.email;
           const isTargetMessageToMe =
-            msg.user === selectedUser.email &&
+            msg.user === targetRef.current.email &&
             msg.target_user === currentUserEmail;
           if (isMyMessageToTarget || isTargetMessageToMe) {
             setLog((old) => [...old, msg]);
+            if (msg.user === "ai@local") {
+              const { error } = await supabase.from("messages").insert([
+                {
+                  sender_email: "ai@local",
+                  target_email: currentUserEmail,
+                  text: msg.text,
+                },
+              ]);
+              if (error) {
+                console.error("AIメッセージ保存失敗", e);
+              }
+            }
           }
         }
       } catch {

@@ -1,4 +1,7 @@
 import json
+import httpx
+import asyncio
+import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
@@ -49,11 +52,44 @@ async def ws_endpoint(ws: WebSocket, user: str):
             target = msg_dict.get("target_user")
             sender = msg_dict.get("user")
 
-            if target in clients:
-                await clients[target].send_text(data)
-
             if sender in clients and sender != target:
                 await clients[sender].send_text(data)
+
+            if target == "ai@local":
+
+                async def ask_ai(user_text, sender_email):
+                    try:
+                        async with httpx.AsyncClient() as client:
+                            res = await client.post(
+                                "http://localhost:11434/api/chat",
+                                json={
+                                    "model": "mistral:7b-instruct",
+                                    "messages": [
+                                        {"role": "user", "content": user_text}
+                                    ],
+                                    "stream": False,
+                                },
+                                timeout=60,
+                            )
+                            ai_text = res.json()["message"]["content"]
+
+                        ai_reply = {
+                            "type": "chat",
+                            "user": target,
+                            "target_user": sender_email,
+                            "text": ai_text,
+                            "ts": int(time.time() * 1000),
+                        }
+                        if sender_email in clients:
+                            await clients[sender_email].send_text(json.dumps(ai_reply))
+
+                    except Exception as e:
+                        print("AI通信エラー:", e)
+
+                asyncio.create_task(ask_ai(msg_dict.get("text"), sender))
+
+            elif target in clients:
+                await clients[target].send_text(data)
 
             if len(data.encode("utf-8")) > 4096:
                 await ws_close(ws, 1009, "Message Too Big (>4KB)")
